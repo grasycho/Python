@@ -1,0 +1,109 @@
+# AR_AlignToSpline Plus (Python Tag)
+# Author: Arttu Rautio (aturtur) - Extended by Assistant - Added Target Object by Grasycho
+# Website: http://aturtur.com/
+# Version: 1.1.1
+
+# Written for Maxon Cinema 4D 2025
+# Python version 3.9.1
+
+# Libraries
+import c4d
+
+def main():
+
+    # User Data
+    spline = op[c4d.ID_USERDATA, 1]  # Link to the spline object
+    rail = op[c4d.ID_USERDATA, 2]    # Link to the rail spline (optional)
+    position = op[c4d.ID_USERDATA, 4] % 1  # Spline position
+    segment = op[c4d.ID_USERDATA, 5]  # Spline segment index
+    orient = op[c4d.ID_USERDATA, 6]   # Orientation selection
+    tangential = op[c4d.ID_USERDATA, 3]  # Tangential alignment toggle
+    target = op[c4d.ID_USERDATA, 7]  # Link to the target object (new feature)
+
+    # Error checking for spline and target
+    if spline is None:
+        return
+
+    # Align to Spline
+    shelp = c4d.utils.SplineHelp()
+    if (spline is not None) and (rail is not None):
+        if not shelp.InitSplineWithRail(spline, rail, c4d.SPLINEHELPFLAGS_GLOBALSPACE | c4d.SPLINEHELPFLAGS_CONTINUECURVE | c4d.SPLINEHELPFLAGS_USERDEFORMERS):
+            return
+    elif (spline is not None) and (rail is None):
+        if not shelp.InitSplineWith(spline, c4d.SPLINEHELPFLAGS_GLOBALSPACE | c4d.SPLINEHELPFLAGS_CONTINUECURVE | c4d.SPLINEHELPFLAGS_USERDEFORMERS):
+            return
+
+    mat = shelp.GetMatrix(position, segment)
+
+    # Orientation
+    if orient == 0:  # X+
+        v1 = c4d.Vector(0, 1, 0)
+        a1 = 90
+        v2 = c4d.Vector(-1, 0, 0)
+        a2 = 90
+
+    elif orient == 1:  # X-
+        v1 = c4d.Vector(0, -1, 0)
+        a1 = 90
+        v2 = c4d.Vector(-1, 0, 0)
+        a2 = 90
+
+    elif orient == 2:  # Y+
+        v1 = c4d.Vector(-1, 0, 0)
+        a1 = 90
+        v2 = c4d.Vector(0, 1, 0)
+        a2 = -90
+
+    elif orient == 3:  # Y-
+        v1 = c4d.Vector(1, 0, 0)
+        a1 = 90
+        v2 = c4d.Vector(0, 1, 0)
+        a2 = 90
+
+    elif orient == 4:  # Z+
+        v1 = c4d.Vector(0, 0, 1)
+        a1 = -90
+        v2 = c4d.Vector(0, 0, 0)
+        a2 = 0
+
+    elif orient == 5:  # Z-
+        v1 = c4d.Vector(0, 0, 1)
+        a1 = 90
+        v2 = c4d.Vector(0, 1, 0)
+        a2 = 180
+
+    # Handle tangential alignment
+    if tangential:
+        mat = mat * c4d.utils.RotAxisToMatrix(v1, c4d.utils.DegToRad(a1)) * c4d.utils.RotAxisToMatrix(v2, c4d.utils.DegToRad(a2))
+        op.GetObject().SetMg(mat)
+    else:
+        m = op.GetObject().GetMg()
+        m.off = mat.off
+        op.GetObject().SetMg(m)
+
+    # Look at Target (new feature)
+    if target:
+        obj = op.GetObject()  # Current object
+        target_pos = target.GetMg().off  # Get target global position
+        obj_pos = obj.GetMg().off  # Get object global position
+
+        # Calculate direction vector from object to target
+        direction = (target_pos - obj_pos).GetNormalized()
+
+        # Forward (Z-axis) points toward target
+        z_axis = direction
+
+        # Up vector (Y-axis) - you can ideally replace this to adjust orientation better.
+        up_vector = c4d.Vector(0, 1, 0)
+
+        # Calculate the X-axis as a cross product of up_vector and Z-axis
+        x_axis = up_vector.Cross(z_axis).GetNormalized()
+
+        # Correct the Y-axis to ensure perpendicularity
+        y_axis = z_axis.Cross(x_axis).GetNormalized()
+
+        # Create a new matrix for look-at behavior
+        look_at_matrix = c4d.Matrix(obj_pos, x_axis, y_axis, z_axis)
+
+        # Apply the look-at matrix to the object
+        obj.SetMg(look_at_matrix)
