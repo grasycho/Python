@@ -1,0 +1,49 @@
+import c4d
+import math
+
+def main() -> c4d.BaseObject:
+    """
+    Creates a parametric helix spline with gradually increasing radius while maintaining
+    perfect circle proportions. The spline starts from the center (0,0,0) and spirals outward.
+    """
+
+    # Hardcoded parameters for testing
+    start_radius = 0.0        # Starting radius at center
+    end_radius = 500.0         # Ending radius at the top
+    helix_height = 200.0      # Total height of the helix
+    helix_loops = 1.0       # Number of complete rotations
+    point_count = 100         # Number of points in the spline
+
+    # Create spline object
+    helix_spline = c4d.SplineObject(point_count, c4d.SPLINETYPE_LINEAR)
+    helix_spline[c4d.SPLINEOBJECT_CLOSED] = False
+
+    points = []
+
+    for i in range(point_count):
+        # Normalized parameter (0 to 1)
+        t = i / float(point_count - 1)
+
+        # Calculate angle for current point
+        angle = t * helix_loops * math.pi * 2
+
+        # Calculate radius linearly from start_radius to end_radius
+        radius = start_radius + t * (end_radius - start_radius)
+
+        # Calculate height
+        height = t * helix_height
+
+        # Calculate point position
+        x = math.cos(angle) * radius
+        y = height
+        z = math.sin(angle) * radius
+        point = c4d.Vector(x, y, z)
+        points.append(point)
+
+    # Set all points
+    helix_spline.SetAllPoints(points)
+
+    # Update the spline to reflect the changes
+    helix_spline.Message(c4d.MSG_UPDATE)
+
+    return helix_spline
